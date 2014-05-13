@@ -19,7 +19,7 @@ if cookielib is not None:
 url = (u'http://www.eurodict.com/search.php?word=' + sys.argv[1].decode('utf-8') + u'&go=%D0%9F%D1%80%D0%B5%D0%B2%D0%BE%D0%B4&ok=1&diction=ed_en_bg').encode('utf-8')
 
 txdata = None
-txheaders = {'User-agent':'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)'}
+txheaders = {'User-agent':'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
 
 req = Request(url, txdata, txheaders)
 response = urlopen(req)
