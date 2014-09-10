@@ -1,4 +1,4 @@
 eurodict-scrapper
 =================
 
-Console client for free online eurodict dictionaries
+Console client for free online eurodict dictionaries.
