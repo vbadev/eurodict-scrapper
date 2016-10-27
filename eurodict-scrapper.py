@@ -30,7 +30,7 @@ if len(sys.argv) > 2:
 
 url = base_url + 'search.php?' + urllib.urlencode({'word': sys.argv[1], 'go': 'Превод', 'ok': '1', 'diction': diction})
 txdata = None
-txheaders = {'User-agent':'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
+txheaders = {'User-agent':'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0;  rv:11.0) like Gecko'}
 
 req = urllib2.Request(url, txdata, txheaders)
 response = urllib2.urlopen(req)
