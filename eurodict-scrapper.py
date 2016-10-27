@@ -7,6 +7,8 @@ import urllib2
 import cookielib
 from BeautifulSoup import BeautifulSoup
 
+# TODO: add option to print article text only without html, only <span>, <p>, <i> and <b> tags are used in body.
+
 base_url = 'http://www.eurodict.com/'
 # if we use cookielib then we get the HTTPCookieProcessor and install the opener in urllib2
 opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookielib.LWPCookieJar()))
