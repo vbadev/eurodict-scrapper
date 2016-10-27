@@ -7,15 +7,16 @@ import urllib2
 import cookielib
 from BeautifulSoup import BeautifulSoup
 
+base_url = 'http://www.eurodict.com/'
 # if we use cookielib then we get the HTTPCookieProcessor and install the opener in urllib2
 opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookielib.LWPCookieJar()))
 urllib2.install_opener(opener)
 
 if len(sys.argv) < 2:
 	import os.path
-	print "Usage: ", os.path.basename(sys.argv[0]), " <word> [dictionary]"
-	print "Avaiable dictionaries:"
-	response = urllib2.urlopen("http://www.eurodict.koralsoft.com")
+	print 'Usage: ', os.path.basename(sys.argv[0]), ' <word> [dictionary]'
+	print 'Avaiable dictionaries:'
+	response = urllib2.urlopen(base_url)
 	soup = BeautifulSoup(response.read())
 	select = soup.find('select', attrs={'name': 'diction'})
 	for o in select.contents:
@@ -27,7 +28,7 @@ diction = 'ed_en_bg'
 if len(sys.argv) > 2:
 	diction = sys.argv[2]
 
-url = 'http://www.eurodict.com/search.php?' + urllib.urlencode({'word': sys.argv[1], 'go': 'Превод', 'ok': '1', 'diction': diction})
+url = base_url + 'search.php?' + urllib.urlencode({'word': sys.argv[1], 'go': 'Превод', 'ok': '1', 'diction': diction})
 txdata = None
 txheaders = {'User-agent':'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
 
