@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import argparse
 import json
 import pickle
 import os
 import requests
 import bs4
-import sys
 
 
 class Eurodict(object):
@@ -114,7 +114,7 @@ class Eurodict(object):
         else:
             print('<h2>Search failed: ' + resp.reason + ' (' + str(resp.status_code) + ')</h2>')
 
-    def translate(self, word, lng_from=2, lng_to=1):
+    def translate(self, word, lng_from, lng_to):
         if self.token is not None:
             src = None
             dst = None
@@ -156,26 +156,21 @@ def print_usage():
 
 
 def main():
-    if len(sys.argv) < 2:
-        print_usage()
-        return
-    if '-h' in sys.argv or '--help' in sys.argv:
-        print_usage()
-        return
+    parser = argparse.ArgumentParser(description='Console client for eurodict.com')
+    parser.add_argument('-f', '--from', dest='src', nargs='?', help='Language id to translate from')
+    parser.add_argument('-t', '--to', dest='dst', nargs='?', help='Language id to translate to')
+    parser.add_argument('-l', '--list-languages', action='store_true', help='Show supported languages')
+    parser.add_argument('-u', '--update-languages', action='store_true', help='Update supported languages from server')
+    parser.add_argument('word', help='Word to translate')
+    args = parser.parse_args()
 
     e = Eurodict()
-    if '-u' in sys.argv or '--update-languages' in sys.argv:
+    if args.update_languages:
         if e.update_languages():
-            e.list_languages()
-        else:
-            print('Language mappings update failed!')
-        return
-    if '-l' in sys.argv or '--list-languages' in sys.argv:
+            print('Languages updated, run the program again with --list-languages argument to list supported languages.')
+    if args.list_languages:
         e.list_languages()
-        return
-    if len(sys.argv) < 4:
-        print_usage()
-    else:
-        e.translate(sys.argv[1], sys.argv[2], sys.argv[3])
+    if args.word is not None:
+        e.translate(args.word, args.src, args.dst)
 
 main()
