@@ -1,73 +1,142 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-from __future__ import print_function
+import json
+import pickle
+import os
+import requests
+import bs4
 import sys
-import urllib
-import urllib2
-import cookielib
-from BeautifulSoup import BeautifulSoup
 
-# TODO: add option to print article text only without html, only <span>, <p>, <i> and <b> tags are used in body.
 
-base_url = 'http://www.eurodict.com/'
-# if we use cookielib then we get the HTTPCookieProcessor and install the opener in urllib2
-opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookielib.LWPCookieJar()))
-urllib2.install_opener(opener)
+class Eurodict(object):
+    base_url = 'http://www.eurodict.com'
+    search_url = base_url + '/dictionary/translate'
+    app_name = 'eurodict-scrapper'
+    cache_dir = os.path.expanduser('~/.local/cache/' + app_name + '/')
+    cookie_jar = cache_dir + 'cookie_jar.bin'
+    supported_languages = cache_dir + 'languages.json'
 
-if len(sys.argv) < 2:
-    import os.path
+    cookies = None
+    token = None
+    languages = None
 
-    print('Usage: ', os.path.basename(sys.argv[0]), ' <word> [dictionary]')
-    print('Available dictionaries:')
-    response = urllib2.urlopen(base_url)
-    soup = BeautifulSoup(response.read())
-    select = soup.find('select', attrs={'name': 'diction'})
-    for o in select.contents:
-        print('    ', o['value'], ': ', o.contents[0])
-    sys.exit()
+    def __init__(self):
+        # deserialize cookies and token
+        try:
+            with open(self.cookie_jar, 'rb') as cache:
+                self.cookies = pickle.load(cache)
+                self.cookies.clear_expired_cookies()
+                if 'XSRF-TOKEN' in self.cookies and 'laravel_session' in self.cookies:
+                    self.token = pickle.load(cache)
+            with open(self.supported_languages, 'r') as cache:
+                self.languages = json.load(cache)
+        except (IOError, OSError) as e:
+            pass
+        # everything is loaded
+        if self.token is not None and self.languages is not None:
+            return
+        # something is not current or missing, so refresh all cache
+        resp = requests.get(self.base_url)
+        if resp.ok:
+            bs = bs4.BeautifulSoup(resp.text, 'html.parser')
+            if self.token is None:
+                tag = bs.find('input', attrs={'name': '_token'})
+                self.serialize_cookies(resp.cookies, tag.attrs[u'value'])
+            if self.languages is None:
+                self.update_languages(bs)
 
-word = sys.argv[1]
-diction = 'ed_en_bg'
-if len(sys.argv) > 2:
-    diction = sys.argv[2]
+    def serialize_cookies(self, new_cookies=None, new_token=None):
+        if new_cookies is not None:
+            self.cookies = new_cookies
+        if new_token is not None:
+            self.token = new_token
+        try:
+            if not os.path.exists(self.cache_dir):
+                os.makedirs(self.cache_dir)
+            with open(self.cookie_jar, 'wb') as cache:
+                pickle.dump(self.cookies, cache)
+                pickle.dump(self.token, cache)
+        except (IOError, OSError) as e:
+            pass
 
-url = base_url + 'search.php?' + urllib.urlencode({'word': sys.argv[1], 'go': 'Превод', 'ok': '1', 'diction': diction})
-tx_data = None
-tx_headers = {'User-agent': 'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0;  rv:11.0) like Gecko'}
+    def update_languages(self, bs=None):
+        self.languages = []
+        ajax_url = self.base_url + '/ajax/getSecondLanguage/'
+        if bs is None:
+            r = requests.get(self.base_url, cookies=self.cookies)
+            if r.ok:
+                bs = bs4.BeautifulSoup(r.text, 'html.parser')
+        if bs is None:
+            return self.languages
+        tags = bs.find_all('a', attrs={'data-type': 'from'})
+        for l in tags:
+            r = requests.get(ajax_url + l['data-lngid'], cookies=self.cookies)
+            lng = {'lng_id': l['data-lngid'], 'lng_name': l.contents[0]}
+            if r.ok:
+                lng['to'] = json.loads(r.text)
+            self.languages.append(lng)
+        with open(self.supported_languages, 'w') as cache:
+            json.dump(self.languages, cache)
+        return self.languages
 
-req = urllib2.Request(url, tx_data, tx_headers)
-response = urllib2.urlopen(req)
-html = response.read()
+    def print_trans(self, search_word, lng_from, lng_to):
+        data = {
+            '_token': self.token,
+            'lngFrom': int(lng_from),
+            'lngTo': int(lng_to),
+            'sourceWord': search_word,
+            '_search': ''
+        }
+        resp = requests.post(self.search_url, data=data, cookies=self.cookies)
+        if resp.ok:
+            bs = bs4.BeautifulSoup(resp.text, 'html.parser')
+            tag = bs.find('input', attrs={'name': '_token'})
+            self.serialize_cookies(resp.cookies, tag.attrs[u'value'])
+            res = bs.find('div', class_='translate-word')
+            print(res)
+            res = bs.find('div', id='trans_dictionary')
+            print(res)
+        else:
+            print('<h2>Search failed: ' + resp.reason + ' (' + str(resp.status_code) + ')</h2>')
 
-soup = BeautifulSoup(html, fromEncoding="utf-8")
-tree = soup.find('td', attrs={'class': 'meaning_container'})
+    def translate(self, word, lng_from=2, lng_to=1):
+        if self.token is not None:
+            # word = 'test'
+            print('<html><head><meta charset="utf-8"/><title>' + word + '</title><style>')
+            print('''.translate-word { font-size:16px; font-weight: bold; margin-left:25px; display: inline-block; }
+            .translate-trans { color: #e6343d; font-weight: normal; }''')
+            print('</style></head><body>')
+            self.print_trans(word, lng_from, lng_to)
+            print('</body></html>')
 
-deltags = tree.findAll('div')
-deltags.extend(tree.findAll('center'))
-deltags.extend(tree.findAll('h4'))
-deltags.extend(tree.findAll('h5'))
 
-for t in deltags:
-    t.extract()
+def print_usage():
+    print('usage eurodict-scrapper.py [options] [<word> [<lang_id_from> <lang_id_to>]]')
+    print('\tIf lang_id_from or lang_id_to are not set program will translate from English to Bulgarian:')
+    print('\tOptions:')
+    print('\t\t-l, --update-languages   update supported languages from server')
+    print('\t\t-h, --help               print this message')
 
-head = '''<html>\n<head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<style>
-.wordtitle{
-    font-weight:bold;
-    color:navy;
-}
-.wordtrans{
-    font-weight:bold;
-    color:maroon;
-}
-.trans{
-    font-family: "Lucida Sans Unicode", Tahoma, Verdana, Sans-serif;
-    color:maroon;
-}
-</style>\n</head>\n<body>\n'''
-output = str(tree)
-left_index = output.find('<span class="wordtitle">')
-right_index = output.find('<span class="adcont">')
-print(head, output[left_index:right_index], '\n</body>\n</html>')
+
+def __init__():
+    if len(sys.argv) < 2:
+        print_usage()
+        sys.exit(0)
+    if '-h' in sys.argv or '--help' in sys.argv:
+        print_usage()
+        sys.exit(0)
+
+    e = Eurodict()
+    if '-l' in sys.argv or '--update-languages' in sys.argv:
+        languages = e.update_languages()
+        for l in languages:
+            print(l['lng_id'] + '. ' + l['lng_name'])
+            if l['to'] is not None:
+                for t in l['to']:
+                    print('\t' + t['lng_id'] + '. ' + t['lng_name'])
+    elif len(sys.argv) < 4:
+        print_usage()
+    else:
+        e.translate(sys.argv[1], sys.argv[2], sys.argv[3])
+
+__init__()
