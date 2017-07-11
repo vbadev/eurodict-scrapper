@@ -67,7 +67,7 @@ class Eurodict(object):
             if r.ok:
                 bs = bs4.BeautifulSoup(r.text, 'html.parser')
         if bs is None:
-            return self.languages
+            return False
         tags = bs.find_all('a', attrs={'data-type': 'from'})
         for l in tags:
             r = requests.get(ajax_url + l['data-lngid'], cookies=self.cookies)
@@ -77,7 +77,21 @@ class Eurodict(object):
             self.languages.append(lng)
         with open(self.supported_languages, 'w') as cache:
             json.dump(self.languages, cache)
-        return self.languages
+        return True
+
+    @staticmethod
+    def lang_str(l):
+        return l['lng_id'] + '. ' + l['lng_name']
+
+    def print_lang_to(self, l):
+        if l['to'] is not None:
+            for t in l['to']:
+                print('\t' + self.lang_str(t))
+
+    def list_languages(self):
+        for l in self.languages:
+            print(self.lang_str(l))
+            self.print_lang_to(l)
 
     def print_trans(self, search_word, lng_from, lng_to):
         data = {
@@ -101,42 +115,66 @@ class Eurodict(object):
 
     def translate(self, word, lng_from=2, lng_to=1):
         if self.token is not None:
-            # word = 'test'
-            print('<html><head><meta charset="utf-8"/><title>' + word + '</title><style>')
-            print('''.translate-word { font-size:16px; font-weight: bold; margin-left:25px; display: inline-block; }
-            .translate-trans { color: #e6343d; font-weight: normal; }''')
-            print('</style></head><body>')
-            self.print_trans(word, lng_from, lng_to)
-            print('</body></html>')
+            src = None
+            dst = None
+            for l in self.languages:
+                if l['lng_id'] == lng_from:
+                    src = l
+                    for t in l['to']:
+                        if t['lng_id'] == lng_to:
+                            dst = t
+                            break
+                    break
+            if dst is not None:
+                print('<html><head><meta charset="utf-8"/><title>' + word + '</title><style>')
+                print('''.translate-word { font-size:16px; font-weight: bold; margin-left:25px; display: inline-block; }
+                .translate-trans { color: #e6343d; font-weight: normal; }''')
+                print('</style></head><body>')
+                self.print_trans(word, lng_from, lng_to)
+                print('</body></html>')
+            else:
+                if src is not None:
+                    print('Invalid destination language!')
+                    print('Supported destination languages for ' + src['lng_name'] + ' (' + src['lng_id'] +') are:')
+                    self.print_lang_to(src)
+                else:
+                    print('Invalid source language!')
+                    print('Supported languages are:')
+                    for l in self.languages:
+                        print('\t' + self.lang_str(l))
+                print('You can start the program with --update-languages parameter to update languages mapping.')
 
 
 def print_usage():
     print('usage eurodict-scrapper.py [options] [<word> [<lang_id_from> <lang_id_to>]]')
     print('\tIf lang_id_from or lang_id_to are not set program will translate from English to Bulgarian:')
     print('\tOptions:')
-    print('\t\t-l, --update-languages   update supported languages from server')
+    print('\t\t-l, --list-languages     show supported languages')
+    print('\t\t-u, --update-languages   update supported languages from server')
     print('\t\t-h, --help               print this message')
 
 
-def __init__():
+def main():
     if len(sys.argv) < 2:
         print_usage()
-        sys.exit(0)
+        return
     if '-h' in sys.argv or '--help' in sys.argv:
         print_usage()
-        sys.exit(0)
+        return
 
     e = Eurodict()
-    if '-l' in sys.argv or '--update-languages' in sys.argv:
-        languages = e.update_languages()
-        for l in languages:
-            print(l['lng_id'] + '. ' + l['lng_name'])
-            if l['to'] is not None:
-                for t in l['to']:
-                    print('\t' + t['lng_id'] + '. ' + t['lng_name'])
-    elif len(sys.argv) < 4:
+    if '-u' in sys.argv or '--update-languages' in sys.argv:
+        if e.update_languages():
+            e.list_languages()
+        else:
+            print('Language mappings update failed!')
+        return
+    if '-l' in sys.argv or '--list-languages' in sys.argv:
+        e.list_languages()
+        return
+    if len(sys.argv) < 4:
         print_usage()
     else:
         e.translate(sys.argv[1], sys.argv[2], sys.argv[3])
 
-__init__()
+main()
