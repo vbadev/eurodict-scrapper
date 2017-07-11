@@ -164,6 +164,15 @@ def main():
     parser.add_argument('word', help='Word to translate')
     args = parser.parse_args()
 
+    if args.src is None:
+        cyrillic = set('АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯабвгдежзийклмнопрстуфхцчшщъьюя')
+        if any((c in cyrillic) for c in args.word):
+            args.src = '1'
+            args.dst = '2'
+        else:
+            args.src = '2'
+            args.dst = '1'
+
     e = Eurodict()
     if args.update_languages:
         if e.update_languages():
