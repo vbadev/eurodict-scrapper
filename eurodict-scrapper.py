@@ -157,21 +157,12 @@ def print_usage():
 
 def main():
     parser = argparse.ArgumentParser(description='Console client for eurodict.com')
-    parser.add_argument('-f', '--from', dest='src', nargs='?', help='Language id to translate from')
-    parser.add_argument('-t', '--to', dest='dst', nargs='?', help='Language id to translate to')
+    parser.add_argument('-f', '--from', default='2', dest='src', nargs='?', help='Language id to translate from')
+    parser.add_argument('-t', '--to', default='1', dest='dst', nargs='?', help='Language id to translate to')
     parser.add_argument('-l', '--list-languages', action='store_true', help='Show supported languages')
     parser.add_argument('-u', '--update-languages', action='store_true', help='Update supported languages from server')
     parser.add_argument('word', help='Word to translate')
     args = parser.parse_args()
-
-    if args.src is None:
-        cyrillic = set('АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯабвгдежзийклмнопрстуфхцчшщъьюя')
-        if any((c in cyrillic) for c in args.word):
-            args.src = '1'
-            args.dst = '2'
-        else:
-            args.src = '2'
-            args.dst = '1'
 
     e = Eurodict()
     if args.update_languages:
