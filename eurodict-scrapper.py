@@ -15,6 +15,7 @@ class Eurodict(object):
     cache_dir = os.path.expanduser('~/.local/cache/' + app_name + '/')
     cookie_jar = cache_dir + 'cookie_jar.bin'
     supported_languages = cache_dir + 'languages.json'
+    headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko'}
 
     cookies = None
     token = None
@@ -30,13 +31,13 @@ class Eurodict(object):
                     self.token = pickle.load(cache)
             with open(self.supported_languages, 'r') as cache:
                 self.languages = json.load(cache)
-        except (IOError, OSError) as e:
+        except (IOError, OSError):
             pass
         # everything is loaded
         if self.token is not None and self.languages is not None:
             return
         # something is not current or missing, so refresh all cache
-        resp = requests.get(self.base_url)
+        resp = requests.get(self.base_url, headars=self.headers)
         if resp.ok:
             bs = bs4.BeautifulSoup(resp.text, 'html.parser')
             if self.token is None:
@@ -63,14 +64,14 @@ class Eurodict(object):
         self.languages = []
         ajax_url = self.base_url + '/ajax/getSecondLanguage/'
         if bs is None:
-            r = requests.get(self.base_url, cookies=self.cookies)
+            r = requests.get(self.base_url, cookies=self.cookies, headers=self.headers)
             if r.ok:
                 bs = bs4.BeautifulSoup(r.text, 'html.parser')
         if bs is None:
             return False
         tags = bs.find_all('a', attrs={'data-type': 'from'})
         for l in tags:
-            r = requests.get(ajax_url + l['data-lngid'], cookies=self.cookies)
+            r = requests.get(ajax_url + l['data-lngid'], cookies=self.cookies, headers=self.headers)
             lng = {'lng_id': l['data-lngid'], 'lng_name': l.contents[0]}
             if r.ok:
                 lng['to'] = json.loads(r.text)
@@ -101,7 +102,7 @@ class Eurodict(object):
             'sourceWord': search_word,
             '_search': ''
         }
-        resp = requests.post(self.search_url, data=data, cookies=self.cookies)
+        resp = requests.post(self.search_url, data=data, cookies=self.cookies, headers=self.headers)
         if resp.ok:
             bs = bs4.BeautifulSoup(resp.text, 'html.parser')
             tag = bs.find('input', attrs={'name': '_token'})
