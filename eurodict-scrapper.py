@@ -37,7 +37,7 @@ class Eurodict(object):
         if self.token is not None and self.languages is not None:
             return
         # something is not current or missing, so refresh all cache
-        resp = requests.get(self.base_url, headars=self.headers)
+        resp = requests.get(self.base_url, headers=self.headers)
         if resp.ok:
             bs = bs4.BeautifulSoup(resp.text, 'html.parser')
             if self.token is None:
