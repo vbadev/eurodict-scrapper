@@ -9,8 +9,13 @@ import bs4
 
 
 class Render(object):
+    soup = None
+
     def __init__(self):
         pass
+
+    def set_soup(self, soup):
+        self.soup = soup
 
     def render(self, word, ipa, tr):
         return ''
@@ -23,10 +28,21 @@ class HtmlRender(Render):
                        .ipa { color: #e6343d; font-weight: normal; }\n'''
         res += '</style></head><body>\n'
         res += '<div class="word">' + word + ' <span class="ipa">' + ipa + '</span></div>\n'
+        self.__fix_tree(tr)
         for x in tr.contents:
             res += str(x)
         res += '</body></html>'
         return res
+
+    def __fix_tree(self, tr):
+        if self.soup is None or tr is None:
+            return
+        if len(tr.findAll('p')) == 0:
+            p = self.soup.new_tag(name='p')
+            while len(tr.contents) > 0:
+                tag = tr.contents[0].extract()
+                p.append(tag)
+            tr.append(p)
 
 
 class TextRender(Render):
@@ -174,6 +190,7 @@ class Eurodict(object):
                     tr = bs.find('div', id='trans_dictionary')
                     if self.render is None:
                         self.render = HtmlRender()
+                    self.render.set_soup(bs)
                     return self.render.render(word, ipa, tr)
                 else:
                     return 'Search failed: ' + resp.reason + ' (' + str(resp.status_code) + ')'
