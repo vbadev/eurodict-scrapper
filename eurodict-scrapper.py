@@ -218,9 +218,9 @@ class Eurodict(object):
 
 def main():
     parser = argparse.ArgumentParser(description='Console client for eurodict.com')
-    parser.add_argument('-f', '--from', default='2', dest='src', nargs='?', help='Language id to translate from')
-    parser.add_argument('-t', '--to', default='1', dest='dst', nargs='?', help='Language id to translate to')
-    parser.add_argument('-o', '--output-format', default='html', nargs='?',
+    parser.add_argument('-f', '--from', default='2', dest='src', help='Language id to translate from')
+    parser.add_argument('-t', '--to', default='1', dest='dst', help='Language id to translate to')
+    parser.add_argument('-o', '--output-format', default='html',
                         help='Output format. Currently only supported formats are html and text.')
     parser.add_argument('-l', '--list-languages', action='store_true', help='Show supported languages')
     parser.add_argument('-u', '--update-languages', action='store_true', help='Update supported languages from server')
