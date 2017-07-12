@@ -8,6 +8,35 @@ import requests
 import bs4
 
 
+class Render(object):
+    def __init__(self):
+        pass
+
+    def render(self, word, ipa, tr):
+        return ''
+
+
+class HtmlRender(Render):
+    def render(self, word, ipa, tr):
+        res = '<html><head><meta charset="utf-8"/><title>' + word + '</title><style>\n'
+        res += '''.word { font-size:16px; font-weight: bold; display: inline-block; }
+                       .ipa { color: #e6343d; font-weight: normal; }\n'''
+        res += '</style></head><body>\n'
+        res += '<div class="word">' + word + ' <span class="ipa">' + ipa + '</span></div>\n'
+        for x in tr.contents:
+            res += str(x)
+        res += '</body></html>'
+        return res
+
+
+class TextRender(Render):
+    def render(self, word, ipa, tr):
+        res = word + ' ' + ipa + '\n'
+        for s in tr.strings:
+            res += s
+        return res
+
+
 class Eurodict(object):
     base_url = 'http://www.eurodict.com'
     search_url = base_url + '/dictionary/translate'
@@ -20,6 +49,7 @@ class Eurodict(object):
     cookies = None
     token = None
     languages = None
+    render = None
 
     def __init__(self):
         # deserialize cookies and token
@@ -46,6 +76,9 @@ class Eurodict(object):
             if self.languages is None:
                 self.update_languages(bs)
 
+    def set_render(self, render):
+        self.render = render
+
     def serialize_cookies(self, new_cookies=None, new_token=None):
         if new_cookies is not None:
             self.cookies = new_cookies
@@ -57,7 +90,7 @@ class Eurodict(object):
             with open(self.cookie_jar, 'wb') as cache:
                 pickle.dump(self.cookies, cache)
                 pickle.dump(self.token, cache)
-        except (IOError, OSError) as e:
+        except (IOError, OSError):
             pass
 
     def update_languages(self, bs=None):
@@ -84,35 +117,19 @@ class Eurodict(object):
     def lang_str(l):
         return l['lng_id'] + '. ' + l['lng_name']
 
-    def print_lang_to(self, l):
+    def dst_languages_to_str(self, l):
+        res = ''
         if l['to'] is not None:
             for t in l['to']:
-                print('\t' + self.lang_str(t))
+                res += '\t' + self.lang_str(t) + '\n'
+        return res
 
     def list_languages(self):
+        res = ''
         for l in self.languages:
-            print(self.lang_str(l))
-            self.print_lang_to(l)
-
-    def print_trans(self, search_word, lng_from, lng_to):
-        data = {
-            '_token': self.token,
-            'lngFrom': int(lng_from),
-            'lngTo': int(lng_to),
-            'sourceWord': search_word,
-            '_search': ''
-        }
-        resp = requests.post(self.search_url, data=data, cookies=self.cookies, headers=self.headers)
-        if resp.ok:
-            bs = bs4.BeautifulSoup(resp.text, 'html.parser')
-            tag = bs.find('input', attrs={'name': '_token'})
-            self.serialize_cookies(resp.cookies, tag.attrs[u'value'])
-            res = bs.find('div', class_='translate-word')
-            print(res)
-            res = bs.find('div', id='trans_dictionary')
-            print(res)
-        else:
-            print('<h2>Search failed: ' + resp.reason + ' (' + str(resp.status_code) + ')</h2>')
+            res += self.lang_str(l)
+            res += self.dst_languages_to_str(l)
+        return res
 
     def translate(self, word, lng_from, lng_to):
         if self.token is not None:
@@ -127,38 +144,49 @@ class Eurodict(object):
                             break
                     break
             if dst is not None:
-                print('<html><head><meta charset="utf-8"/><title>' + word + '</title><style>')
-                print('''.translate-word { font-size:16px; font-weight: bold; margin-left:25px; display: inline-block; }
-                .translate-trans { color: #e6343d; font-weight: normal; }''')
-                print('</style></head><body>')
-                self.print_trans(word, lng_from, lng_to)
-                print('</body></html>')
+                data = {
+                    '_token': self.token,
+                    'lngFrom': int(lng_from),
+                    'lngTo': int(lng_to),
+                    'sourceWord': word,
+                    '_search': ''
+                }
+                resp = requests.post(self.search_url, data=data, cookies=self.cookies, headers=self.headers)
+                if resp.ok:
+                    bs = bs4.BeautifulSoup(resp.text, 'html.parser')
+                    tag = bs.find('input', attrs={'name': '_token'})
+                    self.serialize_cookies(resp.cookies, tag.attrs[u'value'])
+                    res = bs.find('div', class_='translate-word')
+                    word = res.contents[0].strip()
+                    res = bs.find('span', class_='translate-trans')
+                    ipa = res.contents[0]
+                    tr = bs.find('div', id='trans_dictionary')
+                    if self.render is None:
+                        self.render = HtmlRender()
+                    return self.render.render(word, ipa, tr)
+                else:
+                    return 'Search failed: ' + resp.reason + ' (' + str(resp.status_code) + ')'
             else:
                 if src is not None:
-                    print('Invalid destination language!')
-                    print('Supported destination languages for ' + src['lng_name'] + ' (' + src['lng_id'] +') are:')
-                    self.print_lang_to(src)
+                    res = 'Invalid destination language!\n'
+                    res += 'Supported destination languages for ' + src['lng_name'] + ' (' + src['lng_id'] + ') are:\n'
+                    res += self.dst_languages_to_str(src)
+                    return res
                 else:
-                    print('Invalid source language!')
-                    print('Supported languages are:')
+                    res = 'Invalid source language!\nSupported languages are:\n'
                     for l in self.languages:
-                        print('\t' + self.lang_str(l))
-                print('You can start the program with --update-languages parameter to update languages mapping.')
-
-
-def print_usage():
-    print('usage eurodict-scrapper.py [options] [<word> [<lang_id_from> <lang_id_to>]]')
-    print('\tIf lang_id_from or lang_id_to are not set program will translate from English to Bulgarian:')
-    print('\tOptions:')
-    print('\t\t-l, --list-languages     show supported languages')
-    print('\t\t-u, --update-languages   update supported languages from server')
-    print('\t\t-h, --help               print this message')
+                        res += '\t' + self.lang_str(l) + '\n'
+                    return res
+        else:
+            return 'Internal error: session information is not available'
 
 
 def main():
     parser = argparse.ArgumentParser(description='Console client for eurodict.com')
     parser.add_argument('-f', '--from', default='2', dest='src', nargs='?', help='Language id to translate from')
     parser.add_argument('-t', '--to', default='1', dest='dst', nargs='?', help='Language id to translate to')
+    parser.add_argument('-o', '--output-format', default='html', nargs='?',
+                        help='Output format. Currently only supported formats are html and text.')
     parser.add_argument('-l', '--list-languages', action='store_true', help='Show supported languages')
     parser.add_argument('-u', '--update-languages', action='store_true', help='Update supported languages from server')
     parser.add_argument('word', help='Word to translate')
@@ -167,10 +195,20 @@ def main():
     e = Eurodict()
     if args.update_languages:
         if e.update_languages():
-            print('Languages updated, run the program again with --list-languages argument to list supported languages.')
+            print('Languages updated. You can run the program again with --list-languages argument to list them.')
     if args.list_languages:
         e.list_languages()
     if args.word is not None:
-        e.translate(args.word, args.src, args.dst)
+        render = None
+        if args.output_format == 'html':
+            render = HtmlRender()
+        elif args.output_format == 'text':
+            render = TextRender()
+        if render is not None:
+            e.set_render(render)
+            print(e.translate(args.word, args.src, args.dst))
+        else:
+            print('Invalid output format "' + args.output_format + '" specified.')
+
 
 main()
