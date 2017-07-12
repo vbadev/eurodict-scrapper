@@ -6,6 +6,7 @@ import pickle
 import os
 import requests
 import bs4
+import sys
 
 
 class Render(object):
@@ -218,13 +219,17 @@ class Eurodict(object):
 
 def main():
     parser = argparse.ArgumentParser(description='Console client for eurodict.com')
-    parser.add_argument('-f', '--from', default='2', dest='src', help='Language id to translate from')
-    parser.add_argument('-t', '--to', default='1', dest='dst', help='Language id to translate to')
-    parser.add_argument('-o', '--output-format', default='html',
+    parser.add_argument('-f', '--from', default='2', dest='src', metavar='FROM', help='Language id to translate from')
+    parser.add_argument('-t', '--to', default='1', dest='dst', metavar='TO', help='Language id to translate to')
+    parser.add_argument('-o', '--output-format', default='html', metavar='FORMAT',
                         help='Output format. Currently only supported formats are html and text.')
     parser.add_argument('-l', '--list-languages', action='store_true', help='Show supported languages')
     parser.add_argument('-u', '--update-languages', action='store_true', help='Update supported languages from server')
-    parser.add_argument('word', help='Word to translate')
+    parser.add_argument('word', nargs='?', help='Word to translate')
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        return
     args = parser.parse_args()
 
     e = Eurodict()
