@@ -59,6 +59,9 @@ class Eurodict(object):
                 self.cookies.clear_expired_cookies()
                 if 'XSRF-TOKEN' in self.cookies and 'laravel_session' in self.cookies:
                     self.token = pickle.load(cache)
+        except (IOError, OSError):
+            pass
+        try:
             with open(self.supported_languages, 'r') as cache:
                 self.languages = json.load(cache)
         except (IOError, OSError):
