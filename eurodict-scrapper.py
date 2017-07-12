@@ -72,7 +72,7 @@ class Eurodict(object):
         # something is not current or missing, so refresh all cache
         resp = requests.get(self.base_url, headers=self.headers)
         if resp.ok:
-            bs = bs4.BeautifulSoup(resp.text, 'html.parser')
+            bs = self.get_soup(resp.text)
             if self.token is None:
                 tag = bs.find('input', attrs={'name': '_token'})
                 self.serialize_cookies(resp.cookies, tag.attrs[u'value'])
@@ -96,13 +96,21 @@ class Eurodict(object):
         except (IOError, OSError):
             pass
 
+    @staticmethod
+    def get_soup(text):
+        try:
+            res = bs4.BeautifulSoup(text, 'lxml')
+        except bs4.FeatureNotFound:
+            res = bs4.BeautifulSoup(text, 'html.parser')
+        return res
+
     def update_languages(self, bs=None):
         self.languages = []
         ajax_url = self.base_url + '/ajax/getSecondLanguage/'
         if bs is None:
             r = requests.get(self.base_url, cookies=self.cookies, headers=self.headers)
             if r.ok:
-                bs = bs4.BeautifulSoup(r.text, 'html.parser')
+                bs = self.get_soup(r.text)
         if bs is None:
             return False
         tags = bs.find_all('a', attrs={'data-type': 'from'})
@@ -156,7 +164,7 @@ class Eurodict(object):
                 }
                 resp = requests.post(self.search_url, data=data, cookies=self.cookies, headers=self.headers)
                 if resp.ok:
-                    bs = bs4.BeautifulSoup(resp.text, 'html.parser')
+                    bs = self.get_soup(resp.text)
                     tag = bs.find('input', attrs={'name': '_token'})
                     self.serialize_cookies(resp.cookies, tag.attrs[u'value'])
                     res = bs.find('div', class_='translate-word')
