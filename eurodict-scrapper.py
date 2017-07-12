@@ -10,6 +10,7 @@ import bs4
 
 class Render(object):
     soup = None
+    empty_ipa = '[  ]'
 
     def __init__(self):
         pass
@@ -27,7 +28,10 @@ class HtmlRender(Render):
         res += '''.word { font-size:16px; font-weight: bold; display: inline-block; }
                        .ipa { color: #e6343d; font-weight: normal; }\n'''
         res += '</style></head><body>\n'
-        res += '<div class="word">' + word + ' <span class="ipa">' + ipa + '</span></div>\n'
+        res += '<div class="word">' + word
+        if ipa != self.empty_ipa:
+            res += ' <span class="ipa">' + ipa + '</span>'
+        res += '</div>\n'
         self.__fix_tree(tr)
         for x in tr.contents:
             res += str(x)
@@ -47,7 +51,10 @@ class HtmlRender(Render):
 
 class TextRender(Render):
     def render(self, word, ipa, tr):
-        res = word + ' ' + ipa + '\n'
+        res = word
+        if ipa != self.empty_ipa:
+            res += ' ' + ipa
+        res += '\n'
         for s in tr.strings:
             res += s
         return res
