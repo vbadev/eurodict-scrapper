@@ -160,9 +160,9 @@ class Eurodict(object):
         return res
 
     def list_languages(self):
-        res = ''
+        res = 'Format is <id>. <language>\n'
         for l in self.languages:
-            res += self.lang_str(l)
+            res += self.lang_str(l) + '\n'
             res += self.dst_languages_to_str(l)
         return res
 
@@ -237,7 +237,7 @@ def main():
         if e.update_languages():
             print('Languages updated. You can run the program again with --list-languages argument to list them.')
     if args.list_languages:
-        e.list_languages()
+        print(e.list_languages())
     if args.word is not None:
         render = None
         if args.output_format == 'html':
