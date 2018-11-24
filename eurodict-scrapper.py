@@ -62,7 +62,7 @@ class TextRender(Render):
 
 
 class Eurodict(object):
-    base_url = 'http://www.eurodict.com'
+    base_url = 'https://eurodict.com'
     search_url = base_url + '/dictionary/translate'
     app_name = 'eurodict-scrapper'
     cache_dir = os.path.expanduser('~/.local/cache/' + app_name + '/')
