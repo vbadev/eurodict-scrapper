@@ -167,8 +167,6 @@ class Eurodict(object):
         return res
 
     def print_translation(self, text, cookies):
-        with open('src2.html', 'w') as saved:
-            saved.write(text)
         bs = self.get_soup(text)
         tag = bs.find('input', attrs={'name': '_token'})
         if cookies is not None:
