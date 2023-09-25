@@ -166,6 +166,23 @@ class Eurodict(object):
             res += self.dst_languages_to_str(l)
         return res
 
+    def print_translation(self, text, cookies):
+        with open('src2.html', 'w') as saved:
+            saved.write(text)
+        bs = self.get_soup(text)
+        tag = bs.find('input', attrs={'name': '_token'})
+        if cookies is not None:
+            self.serialize_cookies(cookies, tag.attrs[u'value'])
+        res = bs.find('input', id='sourceWord')
+        word = res.attrs['value']
+        res = bs.find('div', class_='source-transcription')
+        ipa = res.contents[0].text.strip()
+        tr = bs.find('div', id='trans_dictionary')
+        if self.render is None:
+            self.render = HtmlRender()
+        self.render.set_soup(bs)
+        return self.render.render(word, ipa, tr)
+
     def translate(self, word, lng_from, lng_to):
         if self.token is not None:
             src = None
@@ -188,18 +205,7 @@ class Eurodict(object):
                 }
                 resp = requests.post(self.search_url, data=data, cookies=self.cookies, headers=self.headers)
                 if resp.ok:
-                    bs = self.get_soup(resp.text)
-                    tag = bs.find('input', attrs={'name': '_token'})
-                    self.serialize_cookies(resp.cookies, tag.attrs[u'value'])
-                    res = bs.find('div', class_='translate-word')
-                    word = res.contents[0].strip()
-                    res = bs.find('span', class_='translate-trans')
-                    ipa = res.contents[0]
-                    tr = bs.find('div', id='trans_dictionary')
-                    if self.render is None:
-                        self.render = HtmlRender()
-                    self.render.set_soup(bs)
-                    return self.render.render(word, ipa, tr)
+                    return self.print_translation(resp.text, resp.cookies)
                 else:
                     return 'Search failed: ' + resp.reason + ' (' + str(resp.status_code) + ')'
             else:
